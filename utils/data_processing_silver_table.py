@@ -38,7 +38,7 @@ def process_silver_table(snapshot_date_str, bronze_lms_directory, silver_loan_da
         "paid_amt": FloatType(),
         "overdue_amt": FloatType(),
         "balance": FloatType(),
-        "snapshot_date": DateType(),
+        "snapshot_date": DateType()
     }
 
     for column, new_type in column_type_map.items():
