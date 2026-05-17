@@ -136,8 +136,8 @@ print(dates_str_lst)
 #     dfs_full.append(df_full)
 
 # # get loan_prod and loan_dim tables
-# utils.data_processing_silver_table.process_silver_loan_prod(dfs_full, silver_loan_daily_directory)
-# utils.data_processing_silver_table.process_silver_loan_dim(dfs_full, silver_loan_daily_directory)
+# utils.data_processing_silver_table.process_silver_loan_prod(dfs_full, "datamart/silver/loan_product/")
+# utils.data_processing_silver_table.process_silver_loan_dim(dfs_full, "datamart/silver/loan_dimensions/")
 
 
 
