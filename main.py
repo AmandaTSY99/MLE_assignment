@@ -9,8 +9,9 @@ from dateutil.relativedelta import relativedelta
 import pprint
 import pyspark
 import pyspark.sql.functions as F
+import re
 
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, udf
 from pyspark.sql.types import StringType, IntegerType, FloatType, DateType
 
 import utils.data_processing_bronze_table
@@ -63,7 +64,10 @@ print(dates_str_lst)
 
 
 
-# BRONZE
+# BRONZE =============================================================
+print(f'\n{"="*60}')
+print('BRONZE - load data as is')
+print(f'{"="*60}')
 # create bronze datalake - lms
 bronze_lms_directory = "datamart/bronze/lms/"
 
@@ -114,23 +118,85 @@ for i in range(len(table_dict['source'])):
 
 
 
-# SILVER
-# create silver datalake - lms
+# SILVER =============================================================
+print(f'\n{"="*60}')
+print('SILVER - just-enough data cleansing and prep')
+print(f'{"="*60}')
+start_date_str = "2023-01-01"
+end_date_str = "2025-11-01"
+dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
+print("list of dates for lms:", dates_str_lst)
+
 silver_loan_daily_directory = "datamart/silver/loan_daily/"
 
 if not os.path.exists(silver_loan_daily_directory):
     os.makedirs(silver_loan_daily_directory)
-
-# run silver backfill - lms
+    
+dfs_full = []
 for date_str in dates_str_lst:
-    utils.data_processing_silver_table.process_silver_table(date_str, bronze_lms_directory, silver_loan_daily_directory, spark)
+    
+    df_full, df_dropped = utils.data_processing_silver_table.process_silver_lms(
+        date_str, 'datamart/bronze/lms/', silver_loan_daily_directory, spark
+    )
+    
+    dfs_full.append(df_full)
+
+# get loan_prod and loan_dim tables
+utils.data_processing_silver_table.process_silver_loan_prod(dfs_full, "datamart/silver/loan_product/")
+utils.data_processing_silver_table.process_silver_loan_dim(dfs_full, "datamart/silver/loan_dimensions/")
 
 
 
+# feature_attributes
+utils.data_processing_silver_table.process_silver_attr(
+    'datamart/bronze/attributes/bronze_cust_attr.csv', 
+    'datamart/silver/attributes/', 
+    spark
+)
 
-# GOLD
+
+# feature_financials
+utils.data_processing_silver_table.process_silver_fin(
+    'datamart/bronze/financials/bronze_cust_fin.csv', 
+    'datamart/silver/financials/', 
+    spark
+)
+
+
+# feature_clickstreams
+start_date_str = '2023-01-01'
+end_date_str = '2024-12-01'
+
+dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
+print("list of dates for clickstream:", dates_str_lst)
+
+bronze_clickstream_directory = 'datamart/bronze/clickstream/'
+silver_clickstream_directory = 'datamart/silver/clickstream/'
+
+if not os.path.exists(silver_clickstream_directory):
+    os.makedirs(silver_clickstream_directory)
+
+for date_str in dates_str_lst:
+    utils.data_processing_silver_table.process_silver_clickstream(
+        date_str, 
+        bronze_clickstream_directory, 
+        silver_clickstream_directory, 
+        spark
+    )
+
+
+
+# GOLD =============================================================
 # create gold datalake - lms
+print(f'\n{"="*60}')
+print('GOLD - create label store')
+print(f'{"="*60}')
+start_date_str = "2023-01-01"
+end_date_str = "2025-11-01"
+dates_str_lst = generate_first_of_month_dates(start_date_str, end_date_str)
+
 gold_label_store_directory = "datamart/gold/label_store/"
+silver_loan_daily_directory = "datamart/silver/loan_daily/"
 
 if not os.path.exists(gold_label_store_directory):
     os.makedirs(gold_label_store_directory)
@@ -146,6 +212,85 @@ df = spark.read.option("header", "true").parquet(*files_list)
 print("row_count:",df.count())
 
 df.show()
+
+gold_feat_store_dir = "datamart/gold/feature_store/"
+
+# loan dim, loan prod
+print(f'\n{"="*60}')
+print('GOLD - loan dim and loan prod')
+print(f'{"="*60}')
+utils.data_processing_gold_table.process_gold_copy("datamart/silver/loan_dimensions/loan_dim.parquet",
+                                                   gold_feat_store_dir,
+                                                   "gold_loan_dim.parquet",
+                                                   spark)
+
+utils.data_processing_gold_table.process_gold_copy("datamart/silver/loan_product/loan_prod.parquet",
+                                                   gold_feat_store_dir,
+                                                   "gold_loan_prod.parquet",
+                                                   spark)
+
+
+
+# attributes
+print(f'\n{"="*60}')
+print('GOLD - customer attributes')
+print(f'{"="*60}')
+attr_df = utils.data_processing_gold_table.process_gold_attr(
+    "datamart/silver/attributes/silver_cust_attr.parquet",
+    gold_feat_store_dir,
+    spark
+)
+
+
+# financials
+print(f'\n{"="*60}')
+print('GOLD - customer financials')
+print(f'{"="*60}')
+fin_df = utils.data_processing_gold_table.process_gold_fin(
+    "datamart/silver/financials/silver_cust_fin.parquet",
+    gold_feat_store_dir,
+    spark
+)
+
+
+# clickstream
+print(f'\n{"="*60}')
+print('GOLD - clickstream')
+print(f'{"="*60}')
+click_df = utils.data_processing_gold_table.process_gold_clickstream(
+    "datamart/silver/clickstream/silver_clickstream_daily_*.parquet",
+    "datamart/silver/loan_dimensions/loan_dim.parquet",
+    gold_feat_store_dir,
+    spark
+)
+
+# join attributes, financials, clickstream
+print(f'\n{"="*60}')
+print('GOLD - join all features')
+print(f'{"="*60}')
+df_x = utils.data_processing_gold_table.process_gold_join(
+    attr_df, 
+    fin_df, 
+    click_df,
+    gold_feat_store_dir,
+    spark
+)
+
+
+# split into train, test, oot, post-split processing
+print(f'\n{"="*60}')
+print('GOLD - train test OOT split')
+print(f'{"="*60}')
+utils.data_processing_gold_table.process_gold_splitdata (
+    df_x, 
+    "datamart/gold/label_store/gold_label_store_*.parquet", 
+    "datamart/gold/post_split/",
+    spark)
+
+
+
+
+
 
 
 
