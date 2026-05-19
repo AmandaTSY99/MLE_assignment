@@ -80,7 +80,7 @@ def process_silver_loan_prod(dfs, silver_directory):
     
     filepath = silver_directory + "loan_prod.parquet"
     loan_prod.write.mode("overwrite").parquet(filepath)
-    print(f"Saved loan_prod (tenure, principal, monthly repayment): {loan_prod.count()} row(s) to {filepath}")
+    print(f"\nSaved loan_prod (tenure, principal, monthly repayment): {loan_prod.count()} row(s) to {filepath}")
     
     return loan_prod
 
@@ -95,7 +95,7 @@ def process_silver_loan_dim(dfs, silver_directory):
     
     filepath = silver_directory + "loan_dim.parquet"
     loan_dim.write.mode("overwrite").parquet(filepath)
-    print(f"Saved loan_dim (loan id and start date): {loan_dim.count()} row(s) to {filepath}")
+    print(f"\nSaved loan_dim (loan id and start date): {loan_dim.count()} row(s) to {filepath}")
     
     return loan_dim
 
@@ -142,7 +142,7 @@ def process_silver_attr(bronze_directory, silver_directory, spark):
         F.when(col("Occupation") == '_______', None).otherwise(col("Occupation"))
     )
 
-    print("feature_attributes: silver layer cleaning done")
+    print("\nfeature_attributes: silver layer cleaning done")
 
     # create directory path
     if not os.path.exists(silver_directory):
@@ -243,6 +243,11 @@ def process_silver_fin(bronze_directory, silver_directory, spark):
     for c in cols_others:
         df = df.withColumn(c, F.when(col(c)<0, None).otherwise(col(c)))
 
+    # handle anomalous interest_rate
+    df = df.withColumn('Interest_Rate',
+                       F.when(col('Interest_Rate')>100, None).otherwise(col("Interest_Rate"))
+                      )
+    
 
     # replace Type_of_Loan with columns specifying type of loan and the count
     ## 1. get unique loan types 
@@ -288,7 +293,7 @@ def process_silver_fin(bronze_directory, silver_directory, spark):
         .drop("Payment_Behaviour", "parts")
     )
 
-    print("feature_financials: silver layer cleaning done")
+    print("\nfeature_financials: silver layer cleaning done")
     
     # create directory path
     if not os.path.exists(silver_directory):
