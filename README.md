@@ -16,15 +16,13 @@
 Wait for the script to finish running and you should see a new datamart file with bronze, silver and gold files. 
 
 ## About this assignment
-In this assignment, my role is a data scientist who works as a financial institute, and is tasked to build a machine learning model to predict whether a user will default on their loan at the point of application. The data on customers has been provided and the code to process it using the medallion structure has been stored in this repository. Docker image has also been set up to allow for the deployment of container-based application consistently. 
-
-For more information on the data and how to run the script, please find them below. 
+In this assignment, my role is a data scientist who works at a financial institute, and I am tasked to build a machine learning model to predict , at the point of application, whether a user will default on their loan. The data on customers has been provided and the code to process it using the medallion structure has been stored in this repository. Docker image has also been set up to allow for the deployment of container-based application consistently. 
 
 ## Files in the repo
 1. data file contains raw dataset.
-2. utils file contains codes for processing from bronze to gold. 
+2. utils file contains defined functions for processing from bronze to gold. 
 3. docker-compose.yaml, Dockerfile, requirements.txt files are used for setting up docker container. 
-4. main.py is the mains script to run to create a datamart containing the data in the different medallion architecture layer. 
+4. main.py is the mains script to run to create a datamart containing the data in the different medallion architecture layers. 
 
 
 ## Raw dataset
