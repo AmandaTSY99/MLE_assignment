@@ -1,7 +1,7 @@
 # CS611 Assignment 1: Data Processing Pipelines
 
 ## How to run
-1. CLone the repository
+1. Clone the repository
 ```git clone https://github.com/AmandaTSY99/MLE_assignment.git```
 2. Open the file directory in vscode
 3. In the vscode terminal, build the docker image
@@ -12,6 +12,7 @@
 5. From the Launcher in JupyterLab, open Terminal
 6. Run the main.py script in the Terminal
 ```python main.py```
+
 Wait for the script to finish running and you should see a new datamart file with bronze, silver and gold files. 
 
 ## About this assignment
